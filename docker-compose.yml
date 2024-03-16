@@ -1,0 +1,30 @@
+version: "3"
+services:
+  payment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: m4-payment-service
+    environment:
+      POSTGRES_USER: "admin"
+      POSTGRES_PASS: "admin"
+      POSTGRES_DB: "m4-payment-db"
+      POSTGRES_HOST: "localhost:5432"
+      ENVIRONMENT: "dev"
+      WEBHOOK_BASE_URL: ""
+      MERCADO_PAGO_ACCESS_TOKEN: ""
+      MERCADO_PAGO_USER_ID: ""
+      MERCADO_PAGO_EXTERNAL_POS_ID: ""
+    ports:
+      - "8000:8000"
+
+  postgres:
+    image: postgres
+    volumes:
+      - ./create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
+    environment:
+      POSTGRES_USER: "admin"
+      POSTGRES_PASSWORD: "admin"
+      POSTGRES_DB: "m4-payment-db"
+    ports:
+      - "5432:5432"
