@@ -11,12 +11,12 @@ permissions:
 
 env:
   AWS_REGION: us-east-1                   # set this to your preferred AWS region, e.g. us-west-1
-  ECR_REPOSITORY: m4-payments            # set this to your Amazon ECR repository name
+  ECR_REPOSITORY: m5-payments            # set this to your Amazon ECR repository name
   ECS_SERVICE: payments-service                 # set this to your Amazon ECS service name
-  ECS_CLUSTER: cluster-ecs-m4                 # set this to your Amazon ECS cluster name
+  ECS_CLUSTER: m5-cluster                 # set this to your Amazon ECS cluster name
   ECS_TASK_DEFINITION: ./task_definition_ecs-revision1.json # set this to the path to your Amazon ECS task definition
                                                # file, e.g. .aws/task-definition.json
-  CONTAINER_NAME: m4-payments-1           # set this to the name of the container in the
+  CONTAINER_NAME: m5-payments           # set this to the name of the container in the
                                                # containerDefinitions section of your task definition
 
 jobs:
