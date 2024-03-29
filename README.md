@@ -4,13 +4,24 @@ Projeto criado com o objetivo de entregar o desafio proposto pelo Curso de Softw
 
 Este projeto tem como objetivo implementar as melhores práticas de desenvolvimento e arquitetura de código. Nesta etapa do projeto estamos utilizando a Arquitetura Limpa, com base nos requisitos levantados pelas práticas de Domain Driven Design aplicadas no módulo 1 [Event Storming](https://miro.com/app/board/uXjVM44WnuU=/?share_link_id=199664765180). (Este quadro é privado, para obter acesso basta entrar em contato com um dos membros da equipe).
 
+
+## Arquitetura
+
+<p>
+    <img  src=content/arquitetura_tech_challenge.jpg>
+</p>
+
 O app está integrado com a API de QR Code Dinâmico do MercadoPago para realização do pagamento dos pedidos.
 
 <p>
     <img  src=content/MercadoPago.jpeg>
 </p>
 
-IMPORTANTE: Para funcionamento desta etapa utilizamos o NGROK para expôr o endpoint localhost de nossa API. Notamos um comportamento inusitado do minikube na plataforma Linux em que o mesmo não estava roteando os pods para localhost, e sim para um ip interno da rede. Quando isso acontece, não é possível testar o webhook utilizando o NGROK. Ao rodarmos o projeto localmente ou via Docker, o app funciona como esperado.
+Junto a este serviço foi criado um sistema de notificações via SMS para confirmação do pagamento e produção do pedido.
+
+<p>
+    <img  src=content/notification.png>
+</p>
 
 
 ## Autores
@@ -39,74 +50,70 @@ Para executar o projeto, é necessário ter instalado:
 $ docker compose up -d
 ```
 
-As variáveis de ambiente foram deixadas hardcoded no arquivo docker-compose.yml para simplicidade de execução, dado o fim apenas educacional do projeto.
+Algumas variáveis de ambiente foram deixadas hardcoded no arquivo docker-compose.yml para simplicidade de execução, dado o fim apenas educacional do projeto. Outras como chaves de acesso da AWS precisam ser preenchidas para que o projeto funcione normalmente.
+
+IMPORTANTE: Para funcionamento da integração com mercado pago localmente é necessário configurar um serviço como o NGROK para expôr o endpoint localhost de nossa API. 
  
 ## Rodando FastAPI
 
-Após rodar o docker-compose, executar o seguinte endereço no navegador:
+Após rodar o docker-compose, abrir os seguintes endereços no navegador:
 
 ```
 http://localhost:8000/docs
 ```
 
+
+```
+http://localhost:8001/docs
+```
+
+
+```
+http://localhost:8002/docs
+```
+
+
+```
+http://localhost:8003/docs
+```
+
+
+```
+http://localhost:8004/docs
+```
+
 Caso tenha o desejo de executar a aplicação via Insomnia ou Postman, é possível capturar os dados em http://localhost:8000/openapi.json e transformar em arquivo .json para ser importado.
 
-# Infraestrutura
+## SAGA
 
-Este repositório contém os arquivos de configuração e implantação para um aplicativo e banco de dados no diretório `kubernetes`. 
+Para este projeto decidimos utilizar o padrão de SAGA coreografada, podendo assim tirar proveito dos benefícios de baixo acomplamento, facilidade de manutenção e assincronia. Dado o tamanho e simplicidade do projeto, algumas desvantagens desse padrão como a complexidade de evolução e visibilidade geral do sistema não terão um impacto tão grande.
 
-IMPORTANTE: Para que a integração com o MercadoPago funcione corretamente é necessário que a aplicação esteja rodando em um servidor com IP público para que o webhook possa ser acessado corretamente. Alternativamente, é possível utilizar o [ngrok](https://ngrok.com/) para criar um túnel para o servidor local, caso seja necessário rodar a aplicação em `localhost`.
+Utilizamos uma combinação dos serviços SNS e SQS da cloud AWS como solução de mensageria. O SNS fica responsável pelo disparo dos eventos, e com ele fica mais simples a integração de um novo serviço consumidor, sendo apenas necessário apontar uma nova fila SQS para este serviço, sem precisar fazer alterações no serviço de onde originou o evento.
 
-Dentro do script `kubernetes/tech-challenge-app-config.yaml` é possível alterar a variável de ambiente `WEBHOOK_URL` para o endereço correto.
+O SQS é responsável por enfileirar os eventos disparados que serão consumidos pelos serviços correspondentes. Já é nativo do serviço um sistema de retry em caso de falha ao processar um evento, e um possível redirecionamento para uma fila DLQ quando um limite de tentativas é atingido, retirando assim um pouco da complexidade por parte da aplicação.
 
-Os comandos e arquivos Kubernetes a seguir são usados para implantar e gerenciar esses recursos no cluster Kubernetes.
+<p>
+    <img  src=content/saga.jpg>
+</p>
 
-## Implantação do Aplicativo
+## OWASP ZAP
 
-Os seguintes comandos são usados para implantar o aplicativo, e devem ser executados dentro da pasta `kubernetes` (onde se encontram os arquivos YAML):
+Foi utilizada a ferramenta ZAP Scanning para buscar por vulnerabilidades na aplicação, não sendo encontrada nenhuma vulnerabilidade alta ou crítica, segundo o relatório:
 
-```bash
-kubectl apply -f .\tech-challenge-app-config.yaml
-kubectl apply -f .\tech-challenge-app-deployment.yaml
-kubectl apply -f .\tech-challenge-app-service.yaml
-```
-- tech-challenge-app-config.yaml - *Arquivo de configuração do aplicativo.*
-- tech-challenge-app-deployment.yaml - *Configuração de implantação do aplicativo.*
-- tech-challenge-app-service.yaml - *Configuração do serviço do aplicativo.*
+https://1drv.ms/u/s!AiVX_MlZ4H9_ibsIxvn0E9b6X4f97A?e=crAcI0
 
-## Implantação do Banco de Dados
+## RIPD 
 
-```bash
-kubectl apply -f .\tech-challenge-secret.yaml
-kubectl apply -f .\tech-challenge-db-deployment.yaml
-kubectl apply -f .\tech-challenge-db-persistent-volume.yaml
-kubectl apply -f .\tech-challenge-db-persistent-volume-claim.yaml
-kubectl apply -f .\tech-challenge-db-storage-class.yaml
-kubectl apply -f .\tech-challenge-db-service.yaml
-```
-- tech-challenge-db-deployment.yaml - *Configuração de implantação do banco de dados.*
-- tech-challenge-db-persistent-volume.yaml - *Configuração do volume persistente do banco de dados.*
-- tech-challenge-db-persistent-volume-claim.yaml - *Configuração do pedido de volume persistente do banco de dados.*
-- tech-challenge-db-storage-class.yaml - *Classe de armazenamento para o banco de dados.*
-- tech-challenge-db-service.yaml - *Configuração do serviço do banco de dados.*
+Pensando na privacidade dos nossos usuários, e garantindo aderência à lei geral de proteção de dados, foi criado um relatório RIPD explicação como funciona toda a manipulação dos dados dos usuários. Segue abaixo o documentação com vídeo para explicação:
 
-## Secret
+https://www.youtube.com/watch?v=lGvdJJlxWPY
 
-```bash
-kubectl apply -f .\tech-challenge-secret.yaml
-```
+https://1drv.ms/w/s!AiVX_MlZ4H9_ibsJrhM1_OcWz7RxCQ?e=biCMj4
 
-- tech-challenge-secret.yaml - *Configuração do segredo.*
+## DEMO
 
-## Implantação de Todos os Recursos
+Por fim, segue abaixo vídeo demo e detalhamento de arquitetura e padrão SAGA:
 
-Para implantar todos os recursos do aplicativo e do banco de dados, você pode usar o seguinte comando:
+https://www.youtube.com/watch?v=HcFb-Mpxox0
 
-```bash
-kubectl apply -f .
-```
 
-## Comandos Úteis
-
-`kubectl get pods` - *Obter a lista de pods em execução no cluster.*
-`kubectl delete --all pods,deployments,configmaps,services,pv,pvc,storageclass,secrets` - *Excluir todos os pods, implantações, configurações, serviços, volumes persistentes, pedidos de volume persistente, classes de armazenamento no cluster e secrets.*
